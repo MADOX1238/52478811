@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ar">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الصفحة الرئيسية - Spherely</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f0f2f5;
+      }
+
+      .navbar {
+        background-color: #4267B2;
+        color: white;
+        padding: 10px 20px;
+        text-align: center;
+        font-size: 24px;
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .search-input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+      }
+
+      .post-input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+      }
+
+      .post-button {
+        width: 100%;
+        padding: 10px;
+        background-color: #4267B2;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      .post-button:hover {
+        background-color: #365899;
+      }
+
+      .posts {
+        margin-top: 20px;
+      }
+
+      .post {
+        background-color: #f7f7f7;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 10px;
+        margin-bottom: 10px;
+        position: relative;
+      }
+
+      .username {
+        font-weight: bold;
+        font-size: 16px;
+        background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+        background-size: 200% auto;
+        color: white;
+        text-fill-color: transparent;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: rainbow 3s linear infinite;
+      }
+
+      @keyframes rainbow {
+        to {
+          background-position: 200% center;
+        }
+      }
+
+      .timestamp {
+        font-size: 12px;
+        color: gray;
+      }
+
+      .action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .like-button, .dislike-button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .like-button:hover, .dislike-button:hover {
+        text-decoration: underline;
+      }
+
+      .reactions-list {
+        margin-top: 10px;
+        font-size: 14px;
+        color: #555;
+      }
+
+      .reactions-list span {
+        display: block;
+        margin-bottom: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="navbar">
+      Spherely
+    </div>
+    <div class="container">
+      <input type="text" id="searchInput" class="search-input" placeholder="ابحث عن المنشورات...">
+      <textarea id="postContent" class="post-input" placeholder="اكتب منشورك هنا..."></textarea>
+      <button id="postButton" class="post-button">نشر</button>
+      <div id="postsContainer" class="posts"></div>
+    </div>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+      import { getDatabase, ref, push, onValue, update, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+      // إعداد Firebase
+      const firebaseConfig = {
+        apiKey: "AIzaSyD2i7QSJMpN_GUH44s6FCa4FPd4CcacjQU",
+        authDomain: "aslaa-aadd9.firebaseapp.com",
+        databaseURL: "https://aslaa-aadd9-default-rtdb.firebaseio.com",
+        projectId: "aslaa-aadd9",
+        storageBucket: "aslaa-aadd9.firebasestorage.app",
+        messagingSenderId: "862690377553",
+        appId: "1:862690377553:web:1addb4ee0d8b4a5f589d70",
+        measurementId: "G-RKNKL008R3"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const database = getDatabase(app);
+
+      const postButton = document.getElementById('postButton');
+      const postContent = document.getElementById('postContent');
+      const postsContainer = document.getElementById('postsContainer');
+      const searchInput = document.getElementById('searchInput');
+
+      // نشر المنشور
+      postButton.addEventListener('click', () => {
+        const content = postContent.value.trim();
+        if (!content) {
+          alert('المنشور لا يمكن أن يكون فارغاً!');
+          return;
+        }
+        const postRef = ref(database, 'posts');
+        push(postRef, {
+          username: localStorage.getItem('username'),
+          content,
+          timestamp: new Date().toISOString(),
+          likes: 0,
+          dislikes: 0,
+          reactions: {}
+        });
+        postContent.value = '';
+      });
+
+      // عرض المنشورات
+      const postsRef = ref(database, 'posts');
+      let allPosts = [];
+      onValue(postsRef, (snapshot) => {
+        allPosts = [];
+        snapshot.forEach((child) => {
+          const post = { key: child.key, ...child.val() };
+          allPosts.push(post);
+        });
+        renderPosts(allPosts);
+      });
+
+      // تصفية المنشورات
+      searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase();
+        const filteredPosts = allPosts.filter(post => post.content.toLowerCase().includes(query));
+        renderPosts(filteredPosts);
+      });
+
+      // وظيفة لعرض المنشورات
+      function renderPosts(posts) {
+        postsContainer.innerHTML = '';
+        posts.forEach(post => {
+          const postElement = document.createElement('div');
+          postElement.classList.add('post');
+          postElement.innerHTML = `
+            <div class="username">${post.username}</div>
+            <div>${post.content}</div>
+            <div class="timestamp">${new Date(post.timestamp).toLocaleString()}</div>
+            <div class="action-buttons">
+              <button class="like-button" onclick="toggleLikeDislike('${post.key}', 'like')">
+                👍 Like <span id="like-count-${post.key}">${post.likes}</span>
+              </button>
+              <button class="dislike-button" onclick="toggleLikeDislike('${post.key}', 'dislike')">
+                👎 Dislike <span id="dislike-count-${post.key}">${post.dislikes}</span>
+              </button>
+            </div>
+          `;
+          postsContainer.appendChild(postElement);
+        });
+      }
+
+      // التفاعل مع الأزرار
+      function toggleLikeDislike(postKey, reaction) {
+        const userId = localStorage.getItem('username');  // تأكد من أن المستخدم مسجل
+        const postRef = ref(database, 'posts/' + postKey);
+        const post = allPosts.find(p => p.key === postKey);
+        const reactions = post.reactions || {};
+
+        if (!userId) {
+          alert("يرجى تسجيل الدخول أولاً");
+          return;
+        }
+
+        if (reaction === 'like') {
+          if (reactions[userId] === 'like') {
+            // إذا كان المستخدم قد ضغط إعجاب بالفعل، يتم إزالة الإعجاب
+            reactions[userId] = null;
+            update(postRef, { likes: post.likes - 1, reactions });
+          } else {
+            if (reactions[userId] === 'dislike') {
+              // إذا كان المستخدم قد ضغط عدم إعجاب، يتم إزالة عدم الإعجاب أولًا
+              reactions[userId] = 'like';
+              update(postRef, { dislikes: post.dislikes - 1, likes: post.likes + 1, reactions });
+            } else {
+              reactions[userId] = 'like';
+              update(postRef, { likes: post.likes + 1, reactions });
+            }
+          }
+        } else if (reaction === 'dislike') {
+          if (reactions[userId] === 'dislike') {
+            // إذا كان المستخدم قد ضغط عدم إعجاب بالفعل، يتم إزالة عدم الإعجاب
+            reactions[userId] = null;
+            update(postRef, { dislikes: post.dislikes - 1, reactions });
+          } else {
+            if (reactions[userId] === 'like') {
+              // إذا كان المستخدم قد ضغط إعجاب، يتم إزالة الإعجاب أولًا
+              reactions[userId] = 'dislike';
+              update(postRef, { likes: post.likes - 1, dislikes: post.dislikes + 1, reactions });
+            } else {
+              reactions[userId] = 'dislike';
+              update(postRef, { dislikes: post.dislikes + 1, reactions });
+            }
+          }
+        }
+      }
+    </script>
+  </body>
+</html>
